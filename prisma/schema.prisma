@@ -1,0 +1,96 @@
+// Prisma schema for Doctor-Patient web app
+// Defines users, doctors, patients, appointments and reviews.
+
+// Configure SQLite by default; DATABASE_URL can be changed later.
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+enum Role {
+  PATIENT
+  DOCTOR
+}
+
+enum AppointmentStatus {
+  SCHEDULED
+  COMPLETED
+  CANCELED
+}
+
+model User {
+  id            String   @id @default(cuid())
+  role          Role
+  email         String   @unique
+  passwordHash  String
+  name          String
+  phone         String?
+  createdAt     DateTime @default(now())
+  patient       Patient?
+  doctor        Doctor?
+  appointments  Appointment[] @relation("UserAppointments")
+  reviews       Review[]       @relation("UserReviews")
+}
+
+model Patient {
+  id        String @id @default(cuid())
+  userId    String @unique
+  user      User   @relation(fields: [userId], references: [id])
+  notes     String?
+}
+
+model Doctor {
+  id           String   @id @default(cuid())
+  userId       String   @unique
+  user         User     @relation(fields: [userId], references: [id])
+  specialties  String[]
+  bio          String?
+  clinicName   String?
+  address      String?
+  city         String?
+  ratingAvg    Float     @default(0)
+  ratingCount  Int       @default(0)
+  availabilities Availability[]
+  appointments Appointment[]
+  reviews      Review[]  @relation("DoctorReviews")
+}
+
+model Availability {
+  id         String  @id @default(cuid())
+  doctorId   String
+  doctor     Doctor  @relation(fields: [doctorId], references: [id])
+  weekday    Int     // 0-6
+  startTime  String  // "09:00"
+  endTime    String  // "17:00"
+  slotMins   Int
+  exceptions Json?
+}
+
+model Appointment {
+  id           String   @id @default(cuid())
+  doctorId     String
+  patientId    String
+  doctor       Doctor   @relation(fields: [doctorId], references: [id])
+  patient      Patient  @relation(fields: [patientId], references: [id])
+  start        DateTime
+  end          DateTime
+  status       AppointmentStatus @default(SCHEDULED)
+  reason       String?
+  createdAt    DateTime @default(now())
+  reviewed     Boolean  @default(false)
+}
+
+model Review {
+  id         String  @id @default(cuid())
+  doctorId   String
+  patientId  String
+  author     User     @relation("UserReviews", fields: [patientId], references: [id])
+  doctor     Doctor   @relation("DoctorReviews", fields: [doctorId], references: [id])
+  rating     Int
+  comment    String
+  createdAt  DateTime @default(now())
+}
